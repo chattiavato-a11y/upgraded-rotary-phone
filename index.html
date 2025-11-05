@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chattia · Local-first + Providers</title>
+
+  <!-- Tight CSP (hashes MUST match the two inline <script> blocks below) -->
+  <meta http-equiv="Content-Security-Policy"
+  content="
+    default-src 'self';
+    script-src 'self' 'wasm-unsafe-eval'
+      'sha256-+QfzYgh8w/D8QUCZFPIyXt77phhS7afT6B/LU12XccE='
+      'sha256-Im1gyt+FIP9GiX37/0gtI5/Ek2+BeLhL+RQy0ct2Q8c=';
+    connect-src 'self'
+      https://ops-edge-api.grabem-holdem-nuts-right.workers.dev
+      https://ops-pack-host.grabem-holdem-nuts-right.workers.dev
+      https://ops-core-llm.grabem-holdem-nuts-right.workers.dev;
+    img-src 'self' data:;
+    style-src 'self' 'unsafe-inline';
+    base-uri 'none';
+    form-action 'self';
+    frame-ancestors 'none';
+  ">
+
+  <style>
+    :root{ --bg:#0b0c10; --card:#121319; --ink:#e6e6e6; --muted:#a9b0b8; --ring:rgba(106,209,255,.35); }
+    [data-theme="light"]{ --bg:#ffffff; --card:#f5f7fb; --ink:#1f2430; --muted:#536070; --accent:#0077ff; --ring:rgba(0,119,255,.25); }
+    body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+    .wrap{max-width:900px;margin:0 auto;padding:20px}
+    header{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap}
+    .toggles{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;justify-content:flex-end;text-align:right}
+    button,select{background:var(--card);color:var(--ink);border:1px solid #242634;border-radius:10px;padding:8px 12px}
+    button:hover{outline:2px solid var(--ring)}
+    .pill{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid #242634;background:var(--card);font-size:12px;color:var(--muted)}
+    .chat{background:var(--card);border:1px solid #242634;border-radius:14px;padding:14px;height:62vh;overflow:auto}
+    .msg{margin:8px 0;padding:10px 12px;border-radius:10px;white-space:pre-wrap}
+    .me{background:rgba(106,209,255,.08);border:1px solid rgba(106,209,255,.25)}
+    .ai{background:rgba(255,255,255,.03);border:1px solid #2a2d3b}
+    .bar{display:flex;gap:8px;margin-top:10px;align-items:flex-end;flex-wrap:wrap}
+    .bar textarea{flex:1;min-height:44px;max-height:160px;resize:vertical;background:var(--card);color:var(--ink);border:1px solid #242634;border-radius:10px;padding:10px}
+    .bar .icon{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0;font-size:20px}
+    .bar-actions{display:flex;flex-direction:column;gap:6px}
+    @media (max-width:600px){ .bar{align-items:stretch;} .bar-actions{flex-direction:row;} }
+    .muted{color:var(--muted);font-size:12px}
+    .bad{color:#ff7b7b}
+    /* Insights panel */
+    .insights{display:none;position:fixed;right:20px;bottom:20px;width:360px;max-height:70vh;overflow:auto;background:var(--card);border:1px solid #242634;border-radius:12px;padding:12px;box-shadow:0 8px 28px rgba(0,0,0,.35)}
+    .insights h3{margin:6px 0 8px 0;font-size:14px}
+    .insights pre{white-space:pre-wrap;font-size:12px;color:var(--muted);background:transparent;border:none}
+  </style>
+
+  <!-- Inline config (no secrets). Hash must match CSP above. -->
+  <script>
+  // config (no secrets)
+  window.__CHATTIA_CONFIG__ = {
+    apiURL: "/api/chat",
+    packURL: "/packs/site-pack.json",
+    packSHA256: "",
+    webllmScript: "",                 // use local loader; keep CSP tight
+    webllmModelId: "Llama-3.1-8B-Instruct-q4f16_1-MLC",
+    webllmAssetsBase: "/static/webllm/models/"
+  };
+  </script>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div><strong>CHATTIA</strong></div>
+      <div class="toggles">
+        <button id="themeBtn" aria-pressed="true">Dark</button>
+        <label class="muted" for="langSel">Lang</label>
+        <select id="langSel" aria-label="Language selector"><option value="en" selected>EN</option><option value="es">ES</option></select>
+        <div class="pill" aria-live="polite">Session tokens: <span id="budgetHint">0</span> / 35000</div>
+        <button id="insightsBtn" title="Show local insights" aria-controls="insightsPanel" aria-expanded="false">Insights</button>
+        <button id="clearLogsBtn" title="Erase local logs">Clear logs</button>
+      </div>
+    </header>
+
+    <form id="chatForm" onsubmit="return false">
+      <div id="chat" class="chat" role="log" aria-live="polite"></div>
+      <div class="bar">
+        <button id="micBtn" class="icon" type="button" aria-pressed="false" title="Start or stop speech input">🎙️</button>
+        <textarea id="input" placeholder="Ask about OPS…" aria-label="Your message"></textarea>
+        <div class="bar-actions">
+          <button id="ttsBtn" class="icon" type="button" aria-pressed="false" title="Toggle narration">🔇 Off</button>
+          <button id="send" type="button">Send</button>
+        </div>
+      </div>
+      <div class="muted" id="status" role="status" aria-live="polite"></div>
+      <div class="bad" id="warn" role="alert"></div>
+    </form>
+  </div>
+
+  <div id="insightsPanel" class="insights" aria-live="polite">
+    <h3>Insights (local, private)</h3>
+    <pre id="insightsText">Loading…</pre>
+  </div>
+
+  <!-- Dependencies in correct order (globals expected by orchestrator) -->
+  <script src="./shield.js" defer></script>
+  <script src="./log_store.js" defer></script>
+  <script src="./speech.js" defer></script>
+  <script src="./l5_local_llm.js" defer></script>
+  <script src="./l5_webllm.js" defer></script>
+  <script src="./l6_orchestrator.js" defer></script>
+
+  <!-- Live token budget hint (approx chars/4). Hash must match CSP above. -->
+  <script>
+    setInterval(()=>{
+      const text = Array.from(document.querySelectorAll('.msg.ai')).map(n=>n.textContent||'').join('');
+      const el = document.getElementById('budgetHint');
+      if (el) el.textContent = Math.ceil(text.length/4);
+    }, 800);
+  </script>
+</body>
+</html>

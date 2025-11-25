@@ -2,33 +2,16 @@
 // L2 Guard + L3 Policy + SSE (/api/chat) + Lead capture (/api/lead) + optional pack proxy
 // Providers: OSS(OpenAI-compatible), Grok (xAI), Gemini, OpenAI.
 // ENV (all TEXT):
-//   FRONTEND_ORIGIN         (optional CORS lock; if unset, same-origin only)
-//   PACK_URL                https://<your-pack-host>/packs/site-pack.json
-//   ENABLE_PROVIDERS        "true" to allow provider calls (default "false")
-//   PROVIDER_CHAIN          "oss,grok,gemini,openai" (subset/order allowed)
-//   -- OSS (OpenAI-compatible: Together, OpenRouter, vLLM, llama.cpp, etc.):
+
 //   OSS_BASE_URL            e.g. "https://api.together.xyz/v1"
 //   OSS_MODEL_ID            e.g. "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
-//   OSS_API_KEY             "sk-..."
-//   -- Grok (xAI):
 //   GROK_BASE_URL           "https://api.x.ai/v1"
 //   GROK_MODEL_ID           e.g. "grok-2-latest"
-//   GROK_API_KEY            "xai-..."
-//   -- Gemini (Google AI for Devs):
 //   GEMINI_BASE_URL         "https://generativelanguage.googleapis.com/v1beta"
 //   GEMINI_MODEL_ID         e.g. "gemini-2.5-flash"
-//   GEMINI_API_KEY          "..."
-//   -- OpenAI:
 //   OPENAI_BASE_URL         "https://api.openai.com/v1"
 //   OPENAI_MODEL_ID         e.g. "gpt-4o-mini"
-//   OPENAI_API_KEY          "sk-..."
-//   -- Leads storage (optional but recommended):
 //   LEADS_TTL_DAYS          e.g. "30" (omit for no TTL)
-// Bindings (Dashboard or wrangler):
-//   [[kv_namespaces]] binding = "LEADS_KV"  (optional KV for leads)
-
-// server_edge.js — L2 Guard + L3 Policy + SSE + L7 provider chain + Lead intake (/api/lead)
-
 // -------------------- Constants --------------------
 const MAX_BODY_BYTES = 64 * 1024;
 const RL_PER_IP_PER_MIN = 20;
